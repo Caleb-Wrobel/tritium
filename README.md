@@ -9,7 +9,9 @@ A balanced ternary computational engine in Scala 3, using the Soviet
   (`t"+0-"` string-interpolated literals, `42.bt`)
 - ✅ 18-trit `Word`: ternary multiplication, shifts (`w"..."`, `Long.bw`)
 - ✅ Instruction set spec: `docs/setun-70/instruction-set.md` (81 ops, encoding, modes)
-- ⬜ Setun-70 two-stack machine emulator
+- ✅ Machine model, phase 1 (`tritium-machine`): paged memory, decode of
+  all tryte forms, pure `step` interpreter running B1–B27 + register specials
+- ⬜ Machine phase 2: macro-operations, drum paging (CF/LF/LQ), I/O channels
 - ⬜ Ternary assembly DSL
 
 ## Quick start

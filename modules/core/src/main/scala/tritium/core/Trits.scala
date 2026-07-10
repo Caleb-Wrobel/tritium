@@ -1,9 +1,10 @@
 package tritium.core
 
 /** Width-generic balanced ternary arithmetic on trit vectors (MSB first).
-  * `Tryte` and `Word` delegate here.
+  * Low-level: `Tryte` and `Word` delegate here, and the machine module
+  * uses it for register-field packing. Prefer the typed wrappers.
   */
-private[core] object Trits:
+object Trits:
 
   def zero(width: Int): Vector[Trit] = Vector.fill(width)(Trit.Z)
 

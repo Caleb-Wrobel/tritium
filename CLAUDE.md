@@ -13,9 +13,14 @@ machine emulator.
 
 ## Layout
 
-- `modules/core` — trit/tryte arithmetic and the DSL (`tritium.core.dsl`:
-  `t"+0-"` literals, `Int.bt`). Trits are `-`/`0`/`+`; a tryte is 6 trits,
-  MSB first, range ±364.
+- `modules/core` — trit/tryte/word arithmetic and the DSL
+  (`tritium.core.dsl`: `t"+0-"`/`w"..."` literals, `Int.bt`, `Long.bw`).
+  Trits are `-`/`0`/`+`; a tryte is 6 trits, a word 18, MSB first.
+- `modules/machine` — the Setun-70 emulator: `Memory` (27 pages × 81
+  trytes, pages −13…+13, RAM from +5), `Instruction.decode`, and
+  `Machine.step`, a pure `MachineState => MachineState`. The spec is
+  `docs/setun-70/instruction-set.md`; deviations must be commented.
+  Phase 2 (macro-ops, drum paging, I/O) currently faults `Unimplemented`.
 - `docs/setun-70/` — reference material on the Setun-70 architecture.
   Consult these before making architectural decisions about the emulator.
 - `tools/local-llm-mcp/` — MCP bridge to the on-prem Open WebUI instance.
