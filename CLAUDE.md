@@ -1,0 +1,43 @@
+# Tritium — balanced ternary computational engine
+
+A balanced ternary emulator in Scala 3, with the Setun-70 as reference
+architecture. Goal: a clean core model (trits, trytes, words, arithmetic),
+a Scala DSL for ternary programs, and eventually a Setun-70-style stack
+machine emulator.
+
+## Build & test
+
+- `sbt compile` — build everything
+- `sbt test` — run all tests (munit)
+- `sbt "core/testOnly tritium.core.*"` — core tests only
+
+## Layout
+
+- `modules/core` — trit/tryte arithmetic and the DSL (`tritium.core.dsl`:
+  `t"+0-"` literals, `Int.bt`). Trits are `-`/`0`/`+`; a tryte is 6 trits,
+  MSB first, range ±364.
+- `docs/setun-70/` — reference material on the Setun-70 architecture.
+  Consult these before making architectural decisions about the emulator.
+- `tools/local-llm-mcp/` — MCP bridge to the on-prem Open WebUI instance.
+
+## Model delegation policy
+
+An on-prem LLM is available via the `local-llm` MCP server. To conserve
+Claude usage, delegate mundane subtasks to it with the `local_llm` tool:
+
+- dictionary/terminology lookups (ternary logic terms, Russian computing
+  history vocabulary)
+- summarizing or extracting facts from reference documents in `docs/`
+- boilerplate prose (docstring drafts, README sections to be reviewed)
+
+Do NOT delegate: code that will be committed, architectural decisions,
+anything requiring correctness (ternary arithmetic reasoning). Verify
+local-model output before relying on it. If the MCP server is unreachable
+(e.g. cloud session off the LAN), just do the task yourself.
+
+## Conventions
+
+- Scala 3 syntax (significant indentation, `enum`, extension methods).
+- Balanced ternary display convention: `-`, `0`, `+`, MSB first.
+- Tests: munit; prefer exhaustive/property-style checks over examples —
+  tryte range is small enough to test exhaustively.

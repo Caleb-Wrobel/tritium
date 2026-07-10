@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sbt *)",
+      "Bash(scala *)",
+      "mcp__local-llm__local_llm",
+      "mcp__local-llm__list_local_models"
+    ]
+  }
+}

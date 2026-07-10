@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "local-llm": {
+      "command": "python3",
+      "args": ["tools/local-llm-mcp/server.py"],
+      "env": {
+        "OPENWEBUI_URL": "${OPENWEBUI_URL}",
+        "OPENWEBUI_API_KEY": "${OPENWEBUI_API_KEY}",
+        "LOCAL_MODEL": "${LOCAL_MODEL:-}"
+      }
+    }
+  }
+}

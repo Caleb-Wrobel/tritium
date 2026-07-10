@@ -4,3 +4,18 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+
+# sbt / metals
+target/
+project/target/
+project/project/
+.bsp/
+.metals/
+.bloop/
+metals.sbt
+
+# python
+__pycache__/
+
+# local claude settings
+.claude/settings.local.json
