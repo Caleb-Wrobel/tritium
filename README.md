@@ -7,7 +7,8 @@ A balanced ternary computational engine in Scala 3, using the Soviet
 
 - ✅ `tritium-core`: trit and tryte (6-trit, ±364) arithmetic with a DSL
   (`t"+0-"` string-interpolated literals, `42.bt`)
-- ⬜ 18-trit words, multiplication, shifts
+- ✅ 18-trit `Word`: ternary multiplication, shifts (`w"..."`, `Long.bw`)
+- ✅ Instruction set spec: `docs/setun-70/instruction-set.md` (81 ops, encoding, modes)
 - ⬜ Setun-70 two-stack machine emulator
 - ⬜ Ternary assembly DSL
 
