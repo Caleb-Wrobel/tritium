@@ -23,6 +23,10 @@ names here.
   `Machine.step`, a pure `MachineState => MachineState`. The spec is
   `docs/setun-70/instruction-set.md`; deviations must be commented.
   Phase 2 (macro-ops, drum paging, I/O) currently faults `Unimplemented`.
+- `setun.machine.asm` — the assembler DSL: `Asm.page(n) { push(const(5));
+  op(BasicOp.SAddT); jump("label") }` → a bootable `Program`. Two-pass
+  (labels fix up at finish), constant pool grows from the page tail.
+  Write machine tests with it; don't hand-assemble trytes.
 - `docs/setun-70/` — reference material on the Setun-70 architecture.
   Consult these before making architectural decisions about the emulator.
 - `tools/local-llm-mcp/` — MCP bridge to the on-prem Open WebUI instance.

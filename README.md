@@ -13,8 +13,9 @@ organization.
 - ✅ Instruction set spec: `docs/setun-70/instruction-set.md` (81 ops, encoding, modes)
 - ✅ Machine model, phase 1 (`setun-machine`): paged memory, decode of
   all tryte forms, pure `step` interpreter running B1–B27 + register specials
+- ✅ Ternary assembly DSL (`setun.machine.asm`): mnemonics, labels,
+  deduplicated constant pool, assembles to bootable memory pages
 - ⬜ Machine phase 2: macro-operations, drum paging (CF/LF/LQ), I/O channels
-- ⬜ Ternary assembly DSL
 
 ## Quick start
 
@@ -29,6 +30,20 @@ import setun.core.dsl.*
 val a = t"+0-"      // 8
 val b = 34.bt       // +0-0+
 a + b               // ++-0-0 (42)
+```
+
+Assemble and run a Setun-70 program:
+
+```scala
+import setun.machine.*, setun.machine.asm.Asm, Asm.*
+
+val prog = Asm.page(5):
+  push(const(5)); push(const(7))
+  op(BasicOp.SAddT)                   // 12
+  push(const(3)); op(BasicOp.LMulT)   // R := 12, S:Y := 3 × 12 × 3²
+  push(constSenior(16)); op(BasicOp.LST)
+
+Machine.run(prog.boot, 7).operands.head.toLong  // 36
 ```
 
 ## AI-native setup

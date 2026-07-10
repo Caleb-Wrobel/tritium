@@ -79,6 +79,12 @@ enum Instruction:
   case OperandRef(length: Int, hReg: Trit, addr: Vector[Trit])
 
 object Instruction:
+  /** Inverse of `decode` for opcodes: enum ordinal = 3-code value + 13. */
+  def encode(op: BasicOp): Tryte =
+    Tryte(Vector(Z, Z, Z) ++ Trits.fromLong(op.ordinal - 13, 3))
+  def encode(op: SpecialOp): Tryte =
+    Tryte(Vector(Z, Z, P) ++ Trits.fromLong(op.ordinal - 13, 3))
+
   def decode(k: Tryte): Instruction =
     val ts = k.trits
     (ts(0), ts(1)) match
