@@ -1,20 +1,22 @@
-# Tritium — balanced ternary computational engine
+# Setun — a Setun-70 emulator in Scala 3
 
-A balanced ternary emulator in Scala 3, with the Setun-70 as reference
-architecture. Goal: a clean core model (trits, trytes, words, arithmetic),
-a Scala DSL for ternary programs, and eventually a Setun-70-style stack
-machine emulator.
+A pure emulator of the Setun-70 balanced ternary computer: core model
+(trits, trytes, words, arithmetic), a Scala DSL for ternary programs, and
+the two-stack machine itself. The name "tritium" is reserved for Caleb's
+future original ternary engine (this project serves it, hence the
+`io.tritium` org); don't reintroduce "tritium" into package or module
+names here.
 
 ## Build & test
 
 - `sbt compile` — build everything
 - `sbt test` — run all tests (munit)
-- `sbt "core/testOnly tritium.core.*"` — core tests only
+- `sbt "core/testOnly setun.core.*"` — core tests only
 
 ## Layout
 
 - `modules/core` — trit/tryte/word arithmetic and the DSL
-  (`tritium.core.dsl`: `t"+0-"`/`w"..."` literals, `Int.bt`, `Long.bw`).
+  (`setun.core.dsl`: `t"+0-"`/`w"..."` literals, `Int.bt`, `Long.bw`).
   Trits are `-`/`0`/`+`; a tryte is 6 trits, a word 18, MSB first.
 - `modules/machine` — the Setun-70 emulator: `Memory` (27 pages × 81
   trytes, pages −13…+13, RAM from +5), `Instruction.decode`, and

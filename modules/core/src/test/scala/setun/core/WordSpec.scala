@@ -1,6 +1,6 @@
-package tritium.core
+package setun.core
 
-import tritium.core.dsl.*
+import setun.core.dsl.*
 
 class WordSpec extends munit.FunSuite:
   val rng = scala.util.Random(70)

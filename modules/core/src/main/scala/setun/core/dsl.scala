@@ -1,9 +1,9 @@
-package tritium.core
+package setun.core
 
 /** DSL entry points for balanced ternary literals and syntax.
   *
   * {{{
-  * import tritium.core.dsl.*
+  * import setun.core.dsl.*
   * val a = t"+0-"        // tryte literal (zero-padded to 6 trits)
   * val b = 42.bt         // Int -> Tryte
   * a + b

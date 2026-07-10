@@ -1,4 +1,4 @@
-package tritium.core
+package setun.core
 
 /** A Setun-70 tryte: 6 trits, most significant first — the machine's
   * smallest addressable unit. Range: [-364, 364] (i.e. ±(3^6 - 1)/2).

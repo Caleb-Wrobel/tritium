@@ -1,6 +1,6 @@
-package tritium.machine
+package setun.machine
 
-import tritium.core.*
+import setun.core.*
 
 /** Setun-70 operating memory: 27 pages of 81 trytes, page indices −13…+13
   * (three trits). Pages −13…+4 are ПЗУ (ROM), +5…+13 are ОЗУ (RAM).

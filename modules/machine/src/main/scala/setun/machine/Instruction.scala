@@ -1,6 +1,6 @@
-package tritium.machine
+package setun.machine
 
-import tritium.core.*
+import setun.core.*
 import Trit.{N, Z, P}
 
 /** Basic operations B1–B27, declared in 3-code order `000---` … `000+++`

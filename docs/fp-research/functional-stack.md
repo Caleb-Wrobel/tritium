@@ -1,6 +1,6 @@
 # The purely functional stack
 
-Background note for the Tritium emulator's core design decision: the
+Background note for the setun emulator's core design decision: the
 Setun-70's two stacks (operand and return) will be immutable values inside
 a pure `step: MachineState => MachineState` function.
 
@@ -83,7 +83,7 @@ s2, s4 ────┘
 `B → A` tail exists exactly once in memory. This is the emulator's
 time-travel property in miniature: `s2` is a snapshot we never had to copy.
 
-## Mapping to Tritium
+## Mapping to the setun emulator
 
 Scala's `List` *is* the cons list above (`::` is `Node`, `Nil` is
 `Empty`), so the emulator needs no custom stack type:

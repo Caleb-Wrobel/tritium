@@ -1,4 +1,4 @@
-package tritium.core
+package setun.core
 
 /** A Setun-70 operand-stack word: 18 trits (3 trytes), MSB first.
   * Range: ±193 710 244 (i.e. ±(3^18 - 1)/2).

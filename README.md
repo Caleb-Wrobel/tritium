@@ -1,15 +1,17 @@
-# Tritium
+# Setun
 
-A balanced ternary computational engine in Scala 3, using the Soviet
-[Setun-70](https://en.wikipedia.org/wiki/Setun) as reference architecture.
+An emulator for the Soviet [Setun-70](https://en.wikipedia.org/wiki/Setun)
+balanced ternary computer, in Scala 3. Built as the reference substrate
+for a future original ternary engine, *tritium* — hence the `io.tritium`
+organization.
 
 ## Status
 
-- ✅ `tritium-core`: trit and tryte (6-trit, ±364) arithmetic with a DSL
+- ✅ `setun-core`: trit and tryte (6-trit, ±364) arithmetic with a DSL
   (`t"+0-"` string-interpolated literals, `42.bt`)
 - ✅ 18-trit `Word`: ternary multiplication, shifts (`w"..."`, `Long.bw`)
 - ✅ Instruction set spec: `docs/setun-70/instruction-set.md` (81 ops, encoding, modes)
-- ✅ Machine model, phase 1 (`tritium-machine`): paged memory, decode of
+- ✅ Machine model, phase 1 (`setun-machine`): paged memory, decode of
   all tryte forms, pure `step` interpreter running B1–B27 + register specials
 - ⬜ Machine phase 2: macro-operations, drum paging (CF/LF/LQ), I/O channels
 - ⬜ Ternary assembly DSL
@@ -21,8 +23,8 @@ sbt test
 ```
 
 ```scala
-import tritium.core.*
-import tritium.core.dsl.*
+import setun.core.*
+import setun.core.dsl.*
 
 val a = t"+0-"      // 8
 val b = 34.bt       // +0-0+

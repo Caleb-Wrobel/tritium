@@ -1,7 +1,7 @@
-package tritium.machine
+package setun.machine
 
-import tritium.core.*
-import tritium.core.dsl.*
+import setun.core.*
+import setun.core.dsl.*
 import Trit.{N, Z, P}
 
 class DecodeSpec extends munit.FunSuite:

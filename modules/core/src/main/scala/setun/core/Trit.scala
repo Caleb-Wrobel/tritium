@@ -1,4 +1,4 @@
-package tritium.core
+package setun.core
 
 /** A balanced ternary digit: -1 (N), 0 (Z), or +1 (P). */
 enum Trit(val value: Int, val symbol: Char):

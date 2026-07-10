@@ -1,4 +1,4 @@
-package tritium.core
+package setun.core
 
 /** Width-generic balanced ternary arithmetic on trit vectors (MSB first).
   * Low-level: `Tryte` and `Word` delegate here, and the machine module

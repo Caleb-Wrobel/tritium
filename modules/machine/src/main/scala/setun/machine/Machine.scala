@@ -1,6 +1,6 @@
-package tritium.machine
+package setun.machine
 
-import tritium.core.*
+import setun.core.*
 import Trit.{N, Z, P}
 
 /** The Setun-70 interpreter: a pure fetch/decode/execute step over
