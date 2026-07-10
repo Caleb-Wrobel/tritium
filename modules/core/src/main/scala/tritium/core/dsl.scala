@@ -12,6 +12,10 @@ package tritium.core
 object dsl:
   extension (sc: StringContext)
     def t(@annotation.unused args: Any*): Tryte = Tryte.parse(sc.parts.mkString)
+    def w(@annotation.unused args: Any*): Word = Word.parse(sc.parts.mkString)
 
   extension (n: Int)
     def bt: Tryte = Tryte.fromInt(n)
+
+  extension (n: Long)
+    def bw: Word = Word.fromLong(n)
