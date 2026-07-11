@@ -85,6 +85,12 @@ object Instruction:
   def encode(op: SpecialOp): Tryte =
     Tryte(Vector(Z, Z, P) ++ Trits.fromLong(op.ordinal - 13, 3))
 
+  /** Macro-operation (system call) tryte for macro number `n` ∈ −13…+13:
+    * `00-` + n, dispatching through m[−13, n − 27].
+    */
+  def encodeMacro(n: Int): Tryte =
+    Tryte(Vector(Z, Z, N) ++ Trits.fromLong(n, 3))
+
   def decode(k: Tryte): Instruction =
     val ts = k.trits
     (ts(0), ts(1)) match

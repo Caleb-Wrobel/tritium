@@ -15,7 +15,9 @@ organization.
   all tryte forms, pure `step` interpreter running B1–B27 + register specials
 - ✅ Ternary assembly DSL (`setun.machine.asm`): mnemonics, labels,
   deduplicated constant pool, assembles to bootable memory pages
-- ⬜ Machine phase 2: macro-operations, drum paging (CF/LF/LQ), I/O channels
+- ✅ Macro-operations (system calls): page −13 dispatch, cb/cc linkage,
+  CMC/RMC/LMC, mode enforcement
+- ⬜ Machine phase 2 remainder: drum paging (CF/LF/LQ), I/O channels
 
 ## Quick start
 

@@ -97,8 +97,8 @@ class MachineSpec extends munit.FunSuite:
     val pastEdge = Asm.page(ProgPage) { raw(Asm.ref(3, Z, 39)) }
     assertEquals(Machine.step(pastEdge.boot).fault, Some(Fault.PageFault))
 
-    val rmc = Asm.page(ProgPage) { op(SpecialOp.RMC) }
-    assertEquals(Machine.step(rmc.boot).fault, Some(Fault.Unimplemented("RMC")))
+    val lu1 = Asm.page(ProgPage) { op(SpecialOp.LU1) }
+    assertEquals(Machine.step(lu1.boot).fault, Some(Fault.Unimplemented("LU1")))
 
   test("CP/EXP/LP move the stack pointer registers"):
     val prog = Asm.page(ProgPage):
@@ -128,6 +128,72 @@ class MachineSpec extends munit.FunSuite:
     assertEquals(out.fault, None)
     assertEquals(out.h(Z), -13)
     assertEquals(out.operands, Nil)
+
+  /** cb-layout linkage trits: mode at z[3], page at z[4:6], addr at z[9:12]. */
+  def linkage(mode: Trit, page: Int, addr: Int): Vector[Trit] =
+    Trits.zero(2) ++ (mode +: Trits.fromLong(page, 3)) ++
+      Trits.zero(2) ++ Trits.fromLong(addr, 4)
+
+  test("macro-operation calls through page −13 and RMC returns"):
+    val sys = Asm.page(-13):
+      data(-27, Seq(7.bt)) // dispatch parameter for macro 0 (ka = 0 − 27)
+      org(-13)             // common handler entry m[−13,−13]
+      op(BasicOp.TDN)      // negate the pushed parameter
+      op(SpecialOp.RMC)
+    val user = Asm.page(ProgPage):
+      macroOp(0)
+      op(BasicOp.EInc) // resumes here after RMC
+    val mem = Memory(Map(-13 -> sys.page, ProgPage -> user.page))
+    val m0 = MachineState.initial(mem).copy(c1 = N, cPage = ProgPage)
+
+    val afterCall = Machine.step(m0)
+    assertEquals(afterCall.fault, None)
+    assertEquals(afterCall.c1, Z) // macro-operation mode
+    assertEquals((afterCall.cPage, afterCall.cOffset), (-13, -13))
+    assertEquals(afterCall.operands, List(Word.fromTrytes(7.bt, Tryte.Zero, Tryte.Zero)))
+    assertEquals(afterCall.cb, linkage(N, ProgPage, -39)) // return past the call
+
+    val done = Machine.run(afterCall, 3) // TDN, RMC, then EInc back home
+    assertEquals(done.fault, None)
+    assertEquals(done.c1, N)
+    assertEquals((done.cPage, done.cOffset), (ProgPage, -38))
+    assertEquals(done.e, 1.bt)
+    assertEquals(done.operands, List(Word.fromTrytes((-7).bt, Tryte.Zero, Tryte.Zero)))
+    assertEquals(done.cb, Trits.zero(12)) // RMC swapped the original cb back
+
+  test("macro-operations are forbidden outside user mode"):
+    val prog = Asm.page(ProgPage) { macroOp(0) }
+    val expected = Some(Fault.IllegalInMode("macro-operation"))
+    assertEquals(Machine.step(prog.boot).fault, expected) // boot = system mode
+    assertEquals(Machine.step(prog.boot.copy(c1 = Z)).fault, expected)
+
+  test("macro call at the page edge faults instead of saving address 41"):
+    val prog = Asm.page(ProgPage) { data(40, Seq(Instruction.encodeMacro(0))) }
+    val m = prog.boot.copy(c1 = N, cOffset = 40)
+    assertEquals(Machine.step(m).fault, Some(Fault.PcOverrun))
+
+  test("system code enters user mode via LMC + RMC"):
+    // the boot idiom: forge a linkage word, load it into cb, "return" into it
+    val sys = Asm.page(-13):
+      op(SpecialOp.LMC)
+      op(SpecialOp.RMC)
+    val m0 = MachineState
+      .initial(sys.memory)
+      .copy(operands = List(Word(linkage(N, ProgPage, 20) ++ Trits.zero(6))))
+    val out = Machine.run(m0, 2)
+    assertEquals(out.fault, None)
+    assertEquals(out.c1, N)
+    assertEquals((out.cPage, out.cOffset), (ProgPage, 20))
+    assertEquals(out.operands, Nil) // LMC popped the linkage word
+
+  test("CMC pushes cb and exchanges cb with cc"):
+    val prog = Asm.page(ProgPage) { op(SpecialOp.CMC) }
+    val cb0 = linkage(N, 3, -10)
+    val cc0 = linkage(P, -2, 25)
+    val out = Machine.step(prog.boot.copy(cb = cb0, cc = cc0))
+    assertEquals(out.fault, None)
+    assertEquals(out.operands, List(Word(cb0 ++ Trits.zero(6))))
+    assertEquals((out.cb, out.cc), (cc0, cb0))
 
   test("trace returns the full step history"):
     val prog = Asm.page(ProgPage):

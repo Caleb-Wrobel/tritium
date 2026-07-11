@@ -102,6 +102,20 @@ final class AsmBuilder private[asm] (val pageIndex: Int):
   def op(o: BasicOp): Unit = raw(Instruction.encode(o))
   def op(o: SpecialOp): Unit = raw(Instruction.encode(o))
 
+  /** Emit a macro-operation (system call) selecting dispatch entry `n`. */
+  def macroOp(n: Int): Unit =
+    if n < -13 || n > 13 then throw AssemblyError(s"macro number $n not in -13..13")
+    raw(Instruction.encodeMacro(n))
+
+  /** Move the code cursor, e.g. to place a macro handler at its fixed
+    * entry address m[−13, −13]. Only moves the cursor; leaves any gap
+    * unassembled (zero trytes).
+    */
+  def org(addr: Int): Unit =
+    if addr < Memory.MinAddr || addr > Memory.MaxAddr then
+      throw AssemblyError(s"org $addr outside the page")
+    pc = addr
+
   def label(name: String): Unit =
     if labelAddrs.contains(name) then throw AssemblyError(s"duplicate label '$name'")
     labelAddrs(name) = pc
@@ -146,6 +160,8 @@ object Asm:
   def raw(t: Tryte)(using b: AsmBuilder): Unit = b.raw(t)
   def op(o: BasicOp)(using b: AsmBuilder): Unit = b.op(o)
   def op(o: SpecialOp)(using b: AsmBuilder): Unit = b.op(o)
+  def macroOp(n: Int)(using b: AsmBuilder): Unit = b.macroOp(n)
+  def org(addr: Int)(using b: AsmBuilder): Unit = b.org(addr)
   def label(n: String)(using b: AsmBuilder): Unit = b.label(n)
   def jump(n: String)(using b: AsmBuilder): Unit = b.jump(n)
   def jumpIfNeg(n: String)(using b: AsmBuilder): Unit = b.jumpIfNeg(n)

@@ -6,9 +6,10 @@ import Trit.{N, Z, P}
 /** The Setun-70 interpreter: a pure fetch/decode/execute step over
   * MachineState, per docs/setun-70/instruction-set.md.
   *
-  * Phase 1 executes all basic operations (B1–B27), operand references,
-  * and the register-only specials (CP, EXP, LP, LH1–LH3). Macro-calls,
-  * external memory paging, and I/O channels fault as Unimplemented.
+  * Executes all basic operations (B1–B27), operand references, the
+  * register specials (CP, EXP, LP, LH1–LH3), and the macro-operation
+  * (system call) mechanism with its linkage specials (CMC, RMC, LMC).
+  * External memory paging and I/O channels fault as Unimplemented.
   * The 36-trit pair ops (LST, LBT, L*T, LHT) compute via Long values —
   * exact, since a 36-trit pair's range fits in a Long.
   */
@@ -48,9 +49,9 @@ object Machine:
           val value = Trits.toLong(trytes.flatMap(_.trits))
           m.copy(operands = Word.fromLong(value) :: m.operands).advanced
 
-    case Instruction.MacroCall(_) =>
+    case Instruction.MacroCall(ka) =>
       if m.c1 != N then m.fail(Fault.IllegalInMode("macro-operation"))
-      else m.fail(Fault.Unimplemented("macro-operation")) // phase 2
+      else macroCall(m, ka)
 
     case Instruction.Basic(op) => basic(m, op)
 
@@ -175,7 +176,64 @@ object Machine:
       case LH2 => loadH(m, Z)
       case LH3 => loadH(m, P)
 
-      case other => m.fail(Fault.Unimplemented(other.mnemonic)) // paging, I/O, macro linkage: phase 2
+      case CMC => // copy cb to stack top; exchange cb and cc
+        val z = Word(m.cb ++ Trits.zero(Word.Width - m.cb.length))
+        m.copy(operands = z :: m.operands, cb = m.cc, cc = m.cb).advanced
+
+      case RMC => // return from macro-operation: restore c from cb, swap cb/cc
+        val (mode, page, addr) = unpackC(m.cb)
+        m.copy(cb = m.cc, cc = m.cb, c1 = mode, cPage = page, cOffset = addr)
+
+      case LMC => // cb := z[1:12] of T, old cb → cc; ↓
+        m.operands match
+          case t :: rest =>
+            m.copy(operands = rest, cc = m.cb, cb = t.trits.take(12)).advanced
+          case _ => m.fail(Fault.StackUnderflow)
+
+      case other => m.fail(Fault.Unimplemented(other.mnemonic)) // paging, I/O: phase 2
+
+  // -- macro-operations --------------------------------------------------
+
+  /** Page −13 holds the macro dispatch table (parameter trytes at
+    * addresses ka = −40…−14) and the common handler entry at m[−13,−13].
+    */
+  private val MacroPage = -13
+  private val MacroEntry = -13
+
+  /** Macro-operation (system call): cc := cb, cb := c, push the dispatch
+    * parameter m[−13, ka] into t (T's other trytes cleared), and enter
+    * macro mode at the handler entry m[−13, −13].
+    *
+    * Spec deviations/interpretations (the PDF leaves both implicit):
+    * the saved c is the address of the *next* instruction, so RMC
+    * resumes after the call; and c[1:8] — packed into cb at z[3:6] and
+    * z[9:12] per RMC's restore — is read as the mode trit c1, the
+    * 3-trit page, then the 4-trit in-page address.
+    */
+  private def macroCall(m: MachineState, ka: Vector[Trit]): MachineState =
+    if m.cOffset + 1 > Memory.MaxAddr then m.fail(Fault.PcOverrun)
+    else
+      m.memory.tryte(MacroPage, Trits.toLong(ka).toInt) match
+        case Left(f) => m.fail(f)
+        case Right(param) =>
+          m.copy(
+            operands = Word.fromTrytes(param, Tryte.Zero, Tryte.Zero) :: m.operands,
+            cc = m.cb,
+            cb = packC(m.c1, m.cPage, m.cOffset + 1),
+            c1 = Z,
+            cPage = MacroPage,
+            cOffset = MacroEntry,
+          )
+
+  /** Pack an instruction-pointer snapshot c[1:8] into the 12-trit cb
+    * layout: c[1:4] at z[3:6], c[5:8] at z[9:12], rest zero.
+    */
+  private def packC(mode: Trit, page: Int, addr: Int): Vector[Trit] =
+    Trits.zero(2) ++ (mode +: Trits.fromLong(page, 3)) ++
+      Trits.zero(2) ++ Trits.fromLong(addr, 4)
+
+  private def unpackC(z: Vector[Trit]): (Trit, Int, Int) =
+    (z(2), Trits.toLong(z.slice(3, 6)).toInt, Trits.toLong(z.slice(8, 12)).toInt)
 
   // -- helpers -----------------------------------------------------------
 

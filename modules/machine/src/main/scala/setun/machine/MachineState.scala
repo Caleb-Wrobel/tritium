@@ -33,6 +33,8 @@ final case class MachineState(
     c1: Trit,                       // mode: N user, Z macro-operation, P system
     cPage: Int,                     // instruction pointer: page −13…+13
     cOffset: Int,                   // instruction pointer: in-page address −40…+40
+    cb: Vector[Trit],               // macro-call linkage, spec's c[9:20] (12 trits)
+    cc: Vector[Trit],               // macro-call linkage, spec's c[21:32] (12 trits)
     ph: Vector[Trit],               // stack pointer, page half (2 trits)
     pa: Vector[Trit],               // stack pointer, address half (3 trits)
     reserve: (Vector[Trit], Vector[Trit]), // reserve stack pointer (EXP swaps)
@@ -59,6 +61,8 @@ object MachineState:
     c1 = P,
     cPage = -13,
     cOffset = Memory.MinAddr,
+    cb = Trits.zero(12),
+    cc = Trits.zero(12),
     ph = Vector(Z, Z),
     pa = Vector(Z, Z, Z),
     reserve = (Vector(Z, Z), Vector(Z, Z, Z)),
