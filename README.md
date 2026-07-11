@@ -54,6 +54,28 @@ val prog = Asm.page(5):
 Machine.run(prog.boot, 7).operands.head.toLong  // 36
 ```
 
+The full instruction set runs — macro-operations (system calls), drum
+paging, and I/O channels included. A macro handler on page −13 that
+echoes its dispatch parameter to an output channel:
+
+```scala
+val sys = Asm.page(-13):
+  data(-27, Seq(Tryte.fromInt(7))) // dispatch parameter for macro 0
+  org(-13)                         // common handler entry m[−13,−13]
+  op(SpecialOp.LG2)                // write the parameter to channel 2
+  op(SpecialOp.RMC)                // return to user code
+
+val user = Asm.page(5) { macroOp(0) }
+
+val mem = Memory(Map(-13 -> sys.page, 5 -> user.page))
+val m0  = MachineState.initial(mem).copy(c1 = Trit.N, cPage = 5) // user mode
+Machine.run(m0, 3).channels(Trit.Z).output  // Vector(7·3¹² — the parameter, as a word)
+```
+
+Devices are pure state: drums are page maps, channels are input queues
+and output logs — a driver (or test) fills and drains them between
+steps, so any `MachineState` snapshot is replayable.
+
 ## AI-native setup
 
 This repo is configured for Claude Code (see `CLAUDE.md`), with an MCP
