@@ -1,5 +1,9 @@
 # Setun
 
+[![CI](https://github.com/Caleb-Wrobel/setun/actions/workflows/ci.yml/badge.svg)](https://github.com/Caleb-Wrobel/setun/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Caleb-Wrobel/setun/graph/badge.svg)](https://codecov.io/gh/Caleb-Wrobel/setun)
+[![Scala 3](https://img.shields.io/badge/scala-3.7.1-DC322F.svg)](https://www.scala-lang.org/)
+
 An emulator for the Soviet [Setun-70](https://en.wikipedia.org/wiki/Setun)
 balanced ternary computer, in Scala 3. Built as the reference substrate
 for a future original ternary engine, *tritium* — hence the `io.tritium`
