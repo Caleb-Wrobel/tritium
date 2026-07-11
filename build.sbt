@@ -5,9 +5,19 @@ ThisBuild / version      := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.1"
 
 // Coverage rides Scala 3's built-in instrumentation (sbt-scoverage has
-// no sbt 2 release yet): `sbt -Dcoverage=true test coverageReport`
-// instruments main sources only and aggregates the modules' data into
+// no sbt 2 release yet): -Dcoverage=true instruments main sources, and
+// root/coverageReport aggregates the modules' data into
 // target/coverage-report/cobertura.xml (what CI hands to Codecov).
+//
+// The data files are side effects sbt's build cache can't see, so a
+// cache-hit compile/test silently produces none: coverage runs need a
+// cold build cache and a fresh target (and `clean` is NOT a substitute
+// — sbt restores compile outputs without re-emitting the data). Local
+// recipe:
+//
+//   sbt shutdown; rm -rf target
+//   sbt --server --batch --sbt-cache "$(mktemp -d)" -Dcoverage=true \
+//     "testFull; coverageReport"
 val coverageOn = sys.props.get("coverage").contains("true")
 
 val commonSettings = Seq(
@@ -16,7 +26,11 @@ val commonSettings = Seq(
   Compile / compile / scalacOptions ++= (
     if coverageOn then Seq(s"-coverage-out:${(target.value / "coverage").getAbsolutePath}")
     else Nil
-  )
+  ),
+  // the coverage Invoker dedupes measurement writes per JVM, so tests
+  // must not run inside the long-lived sbt server (a second run there
+  // would record nothing after clean wiped the data files)
+  Test / fork := coverageOn
 )
 
 lazy val core = (project in file("modules/core"))

@@ -20,7 +20,9 @@ jobs:
       - uses: sbt/setup-sbt@v1
 
       - name: Test with coverage
-        run: sbt -Dcoverage=true "clean; test; coverageReport"
+        # per-run build cache: a warm sbt 2 build cache satisfies compile
+        # and test from cache, which skips coverage instrumentation output
+        run: sbt --batch --sbt-cache "$RUNNER_TEMP/sbt-build-cache" -Dcoverage=true "testFull; coverageReport"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
