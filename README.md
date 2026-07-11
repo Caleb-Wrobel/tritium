@@ -21,7 +21,9 @@ organization.
   deduplicated constant pool, assembles to bootable memory pages
 - ✅ Macro-operations (system calls): page −13 dispatch, cb/cc linkage,
   CMC/RMC/LMC, mode enforcement
-- ⬜ Machine phase 2 remainder: drum paging (CF/LF/LQ), I/O channels
+- ✅ Drum paging (LQ/CF/LF) and I/O channels (CG/LU/LG): the full
+  instruction set runs; devices are modeled purely (drums as page maps,
+  channels as input queues and output logs a driver fills and drains)
 
 ## Quick start
 

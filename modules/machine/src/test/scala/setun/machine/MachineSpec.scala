@@ -87,7 +87,7 @@ class MachineSpec extends munit.FunSuite:
     val m = prog.boot.copy(operands = List(5L.bw))
     assertEquals(Machine.step(m).operands, List((-5L).bw))
 
-  test("faults: underflow, mode violation, page overrun, unimplemented"):
+  test("faults: underflow, mode violation, page overrun, empty channel"):
     val underflow = Asm.page(ProgPage) { op(BasicOp.SAddT) }
     assertEquals(Machine.step(underflow.boot).fault, Some(Fault.StackUnderflow))
 
@@ -97,8 +97,8 @@ class MachineSpec extends munit.FunSuite:
     val pastEdge = Asm.page(ProgPage) { raw(Asm.ref(3, Z, 39)) }
     assertEquals(Machine.step(pastEdge.boot).fault, Some(Fault.PageFault))
 
-    val lu1 = Asm.page(ProgPage) { op(SpecialOp.LU1) }
-    assertEquals(Machine.step(lu1.boot).fault, Some(Fault.Unimplemented("LU1")))
+    val cg1 = Asm.page(ProgPage) { op(SpecialOp.CG1) }
+    assertEquals(Machine.step(cg1.boot).fault, Some(Fault.ChannelEmpty(N)))
 
   test("CP/EXP/LP move the stack pointer registers"):
     val prog = Asm.page(ProgPage):
@@ -194,6 +194,59 @@ class MachineSpec extends munit.FunSuite:
     assertEquals(out.fault, None)
     assertEquals(out.operands, List(Word(cb0 ++ Trits.zero(6))))
     assertEquals((out.cb, out.cc), (cc0, cb0))
+
+  /** A word naming memory page `n` in t's trits 4:6 (the LH/CF/LF field). */
+  def pageWord(n: Int): Word =
+    Word(Trits.zero(3) ++ Trits.fromLong(n, 3) ++ Trits.zero(12))
+
+  test("LQ/LF/CF round-trip a page through the drum"):
+    val DataPage = 6
+    val prog = Asm.page(ProgPage):
+      op(SpecialOp.LQ2); op(SpecialOp.LF2); op(SpecialOp.CF2)
+    val marker = 42.bt
+    val Right(mem) = prog.memory.write(DataPage, 20, Vector(marker)): @unchecked
+    val m0 = prog.boot.copy(memory = mem, operands = List(pageWord(DataPage)))
+
+    val afterLq = Machine.step(m0) // q[0] from T[5:12]; T stays
+    assertEquals(afterLq.fault, None)
+    assertEquals(afterLq.operands.length, 1)
+
+    val afterLf = Machine.step(afterLq) // page 6 unloaded to f[0, q[0]]; T stays
+    assertEquals(afterLf.fault, None)
+    assertEquals(afterLf.drums(Z)(afterLf.q(Z))(20 + 40), marker)
+
+    // tamper with RAM, then CF must restore the drum copy
+    val Right(blanked) = afterLf.memory.write(DataPage, 20, Vector(Tryte.Zero)): @unchecked
+    val afterCf = Machine.step(afterLf.copy(memory = blanked))
+    assertEquals(afterCf.fault, None)
+    assertEquals(afterCf.memory.tryte(DataPage, 20), Right(marker))
+    assertEquals(afterCf.operands, Nil) // CF pops
+
+  test("CF into a ROM page faults"):
+    val prog = Asm.page(ProgPage) { op(SpecialOp.CF2) }
+    val m = prog.boot.copy(operands = List(pageWord(0))) // page 0 is ROM
+    assertEquals(Machine.step(m).fault, Some(Fault.ReadOnlyPage))
+
+  test("CG pushes channel input with the bit-7 sign convention"):
+    val prog = Asm.page(ProgPage) { op(SpecialOp.CG2); op(SpecialOp.CG2) }
+    val ch = Channel(input = List(64 | 42, 42)) // bit 7 set → plus, clear → minus
+    val m = prog.boot.copy(channels = prog.boot.channels.updated(Z, ch))
+    val out = Machine.run(m, 2)
+    assertEquals(out.fault, None)
+    val senior = (v: Int) => Word.fromTrytes(v.bt, Tryte.Zero, Tryte.Zero)
+    assertEquals(out.operands, List(senior(-42), senior(42)))
+    assertEquals(out.channels(Z).input, Nil)
+
+  test("LU activates a channel and LG logs output; both pop"):
+    val prog = Asm.page(ProgPage) { op(SpecialOp.LU3); op(SpecialOp.LG3) }
+    val ctrl = Word.fromTrytes(7.bt, Tryte.Zero, Tryte.Zero)
+    val m = prog.boot.copy(operands = List(ctrl, 99L.bw))
+    val out = Machine.run(m, 2)
+    assertEquals(out.fault, None)
+    assertEquals(out.operands, Nil)
+    assertEquals(out.channels(P).control, 7.bt)
+    assertEquals(out.channels(P).active, true)
+    assertEquals(out.channels(P).output, Vector(99L.bw))
 
   test("trace returns the full step history"):
     val prog = Asm.page(ProgPage):

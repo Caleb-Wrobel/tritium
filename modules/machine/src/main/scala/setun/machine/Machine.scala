@@ -6,10 +6,11 @@ import Trit.{N, Z, P}
 /** The Setun-70 interpreter: a pure fetch/decode/execute step over
   * MachineState, per docs/setun-70/instruction-set.md.
   *
-  * Executes all basic operations (B1–B27), operand references, the
-  * register specials (CP, EXP, LP, LH1–LH3), and the macro-operation
-  * (system call) mechanism with its linkage specials (CMC, RMC, LMC).
-  * External memory paging and I/O channels fault as Unimplemented.
+  * Executes the full instruction set: all basic operations (B1–B27),
+  * operand references, all special operations (S1–S27), and the
+  * macro-operation (system call) mechanism. Devices are modeled purely:
+  * drums are page maps, I/O channels input queues and output logs a
+  * driver fills and drains between steps.
   * The 36-trit pair ops (LST, LBT, L*T, LHT) compute via Long values —
   * exact, since a 36-trit pair's range fits in a Long.
   */
@@ -190,7 +191,104 @@ object Machine:
             m.copy(operands = rest, cc = m.cb, cb = t.trits.take(12)).advanced
           case _ => m.fail(Fault.StackUnderflow)
 
-      case other => m.fail(Fault.Unimplemented(other.mnemonic)) // paging, I/O: phase 2
+      case LQ1 => loadQ(m, N)
+      case LQ2 => loadQ(m, Z)
+      case LQ3 => loadQ(m, P)
+      case CF1 => drumToRam(m, N)
+      case CF2 => drumToRam(m, Z)
+      case CF3 => drumToRam(m, P)
+      case LF1 => ramToDrum(m, N)
+      case LF2 => ramToDrum(m, Z)
+      case LF3 => ramToDrum(m, P)
+
+      case CG1 => readChannel(m, N)
+      case CG2 => readChannel(m, Z)
+      case CG3 => readChannel(m, P)
+      case LU1 => loadU(m, N)
+      case LU2 => loadU(m, Z)
+      case LU3 => loadU(m, P)
+      case LG1 => writeChannel(m, N)
+      case LG2 => writeChannel(m, Z)
+      case LG3 => writeChannel(m, P)
+
+  // -- drum paging -------------------------------------------------------
+
+  /** LQ: q[i] := T[5:12]. The hardware then starts an asynchronous page
+    * search (SUIT); the pure model's drum access is immediate, so the
+    * search is a no-op. T stays (the spec marks no ↓).
+    */
+  private def loadQ(m: MachineState, i: Trit): MachineState =
+    m.operands match
+      case t :: _ =>
+        m.copy(q = m.q.updated(i, Trits.toLong(t.trits.slice(4, 12)).toInt)).advanced
+      case _ => m.fail(Fault.StackUnderflow)
+
+  /** CF: copy external page f[i, q[i]] into the RAM page named in t; ↓.
+    * The page number is read from t's trits 4:6 as in LH1–LH3; an
+    * unwritten drum page reads as zeros, like unset operating memory.
+    */
+  private def drumToRam(m: MachineState, i: Trit): MachineState =
+    m.operands match
+      case t :: rest =>
+        val page = Trits.toLong(t.trits.slice(3, 6)).toInt
+        val data = m.drums(i).getOrElse(m.q(i), Memory.BlankPage)
+        m.memory.write(page, Memory.MinAddr, data) match
+          case Left(f)    => m.fail(f)
+          case Right(mem) => m.copy(memory = mem, operands = rest).advanced
+      case _ => m.fail(Fault.StackUnderflow)
+
+  /** LF: unload the page numbered in t (trits 4:6, as for CF) to
+    * external memory f[i, q[i]]. T stays (the spec marks no ↓ here,
+    * unlike CF).
+    */
+  private def ramToDrum(m: MachineState, i: Trit): MachineState =
+    m.operands match
+      case t :: _ =>
+        val page = Trits.toLong(t.trits.slice(3, 6)).toInt
+        m.memory.read(page, Memory.MinAddr, Memory.PageSize) match
+          case Left(f) => m.fail(f)
+          case Right(data) =>
+            m.copy(drums = m.drums.updated(i, m.drums(i).updated(m.q(i), data))).advanced
+      case _ => m.fail(Fault.StackUnderflow)
+
+  // -- I/O channels ------------------------------------------------------
+
+  /** CG: read one pending value from channel i to the stack top:
+    * T := 0, t := ±g[i,1:6], plus when bit 7 is set. Interpreted as a
+    * push (as CP's "to stack top" is); consuming an empty channel
+    * faults — the hardware would wait on the device instead.
+    */
+  private def readChannel(m: MachineState, i: Trit): MachineState =
+    val ch = m.channels(i)
+    ch.input match
+      case v :: rest =>
+        val data = if ((v >> 6) & 1) == 1 then v & 63 else -(v & 63)
+        m.copy(
+          operands = Word.fromTrytes(Tryte.fromInt(data), Tryte.Zero, Tryte.Zero) :: m.operands,
+          channels = m.channels.updated(i, ch.copy(input = rest)),
+        ).advanced
+      case Nil => m.fail(Fault.ChannelEmpty(i))
+
+  /** LU: load channel i's control register from t and mark it active; ↓ */
+  private def loadU(m: MachineState, i: Trit): MachineState =
+    m.operands match
+      case t :: rest =>
+        val ch = m.channels(i).copy(control = seniorTryte(t), active = true)
+        m.copy(operands = rest, channels = m.channels.updated(i, ch)).advanced
+      case _ => m.fail(Fault.StackUnderflow)
+
+  /** LG: write T to channel i; ↓. The hardware's TRANSOUT is immediate
+    * in the pure model: the word lands on the channel's output log.
+    */
+  private def writeChannel(m: MachineState, i: Trit): MachineState =
+    m.operands match
+      case t :: rest =>
+        val ch = m.channels(i)
+        m.copy(
+          operands = rest,
+          channels = m.channels.updated(i, ch.copy(output = ch.output :+ t)),
+        ).advanced
+      case _ => m.fail(Fault.StackUnderflow)
 
   // -- macro-operations --------------------------------------------------
 

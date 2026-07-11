@@ -12,7 +12,20 @@ enum Fault:
   case BadReference
   case PcOverrun
   case IllegalInMode(what: String)
-  case Unimplemented(what: String)
+  case ChannelEmpty(channel: Trit)  // CG consumed a channel with no pending input
+
+/** One I/O channel's state — the spec's g (data), u (control) and a
+  * (active) registers, modeled purely. `input` holds pending device
+  * values that CG consumes (7-bit binary: bits 1–6 data, bit 7 the sign
+  * flag); `output` logs the words TRANSOUT (LG) has written. A driver
+  * loads `input` and drains `output` between steps.
+  */
+final case class Channel(
+    input: List[Int] = Nil,
+    output: Vector[Word] = Vector.empty,
+    control: Tryte = Tryte.Zero,
+    active: Boolean = false,
+)
 
 /** Complete Setun-70 machine state. Immutable: `Machine.step` is a pure
   * function `MachineState => MachineState`, so any state is a free
@@ -40,6 +53,9 @@ final case class MachineState(
     reserve: (Vector[Trit], Vector[Trit]), // reserve stack pointer (EXP swaps)
     h: Map[Trit, Int],              // page registers h[-1], h[0], h[+1] → page index
     memory: Memory,
+    q: Map[Trit, Int],              // external page number registers q[i]
+    drums: Map[Trit, Map[Int, Vector[Tryte]]], // external page memory f[i,·] (МБ1–МБ3)
+    channels: Map[Trit, Channel],   // I/O channels 1–3 (indexed −1, 0, +1)
     fault: Option[Fault] = None,
 ):
   def fail(f: Fault): MachineState = copy(fault = Some(f))
@@ -68,4 +84,7 @@ object MachineState:
     reserve = (Vector(Z, Z), Vector(Z, Z, Z)),
     h = Map(N -> -13, Z -> -13, P -> -13),
     memory = memory,
+    q = Map(N -> 0, Z -> 0, P -> 0),
+    drums = Map(N -> Map.empty, Z -> Map.empty, P -> Map.empty),
+    channels = Map(N -> Channel(), Z -> Channel(), P -> Channel()),
   )

@@ -22,7 +22,9 @@ names here.
   trytes, pages −13…+13, RAM from +5), `Instruction.decode`, and
   `Machine.step`, a pure `MachineState => MachineState`. The spec is
   `docs/setun-70/instruction-set.md`; deviations must be commented.
-  Phase 2 (macro-ops, drum paging, I/O) currently faults `Unimplemented`.
+  The full instruction set is implemented; devices are pure state
+  (drums as page maps, I/O channels as input queues/output logs a
+  driver fills and drains between steps).
 - `setun.machine.asm` — the assembler DSL: `Asm.page(n) { push(const(5));
   op(BasicOp.SAddT); jump("label") }` → a bootable `Program`. Two-pass
   (labels fix up at finish), constant pool grows from the page tail.
