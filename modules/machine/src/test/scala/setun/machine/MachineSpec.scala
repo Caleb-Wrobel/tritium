@@ -64,14 +64,14 @@ class MachineSpec extends munit.FunSuite:
     val prog = Asm.page(ProgPage):
       op(BasicOp.TSetW)
       data(20, Seq(9.bt))
-    val m = prog.boot.copy(operands = List(refWord(1, 20)))
+    val m = prog.boot.withStack(List(refWord(1, 20)))
     val out = Machine.step(m)
     assertEquals(out.fault, None)
     assertEquals(out.operands, List(9L.bw))
 
   test("W=S writes S's low trytes through a reference in t"):
     val prog = Asm.page(ProgPage) { op(BasicOp.WSetS) }
-    val m = prog.boot.copy(operands = List(refWord(1, 20), 42L.bw))
+    val m = prog.boot.withStack(List(refWord(1, 20), 42L.bw))
     val out = Machine.step(m)
     assertEquals(out.fault, None)
     assertEquals(out.operands, List(42L.bw))
@@ -84,7 +84,7 @@ class MachineSpec extends munit.FunSuite:
 
   test("TDN negates in place"):
     val prog = Asm.page(ProgPage) { op(BasicOp.TDN) }
-    val m = prog.boot.copy(operands = List(5L.bw))
+    val m = prog.boot.withStack(List(5L.bw))
     assertEquals(Machine.step(m).operands, List((-5L).bw))
 
   test("faults: underflow, mode violation, page overrun, empty channel"):
@@ -100,29 +100,40 @@ class MachineSpec extends munit.FunSuite:
     val cg1 = Asm.page(ProgPage) { op(SpecialOp.CG1) }
     assertEquals(Machine.step(cg1.boot).fault, Some(Fault.ChannelEmpty(N)))
 
-  test("CP/EXP/LP move the stack pointer registers"):
+  test("EXP switches between two real stacks in memory"):
     val prog = Asm.page(ProgPage):
-      op(SpecialOp.CP); op(SpecialOp.EXP); op(SpecialOp.LP)
-    val m = prog.boot.copy(ph = Vector(Z, P), pa = Vector(P, Z, N))
-    val afterCp = Machine.step(m)
-    assertEquals(afterCp.fault, None)
-    val pushed = afterCp.operands.head
-    assertEquals(pushed.trits.slice(4, 6), Vector(Z, P))
-    assertEquals(pushed.trits.slice(8, 11), Vector(P, Z, N))
+      push(const(5)); op(SpecialOp.EXP); push(const(7)); op(SpecialOp.EXP)
+    val out = Machine.run(prog.boot, 4)
+    assertEquals(out.fault, None)
+    assertEquals(out.operands, List(5L.bw)) // back on the boot stack (page 9)
+    // the 7 stayed behind on the reserve stack, page 10 slot −13
+    assertEquals(out.memory.tryte(10, -38), Right(7.bt))
+    assertEquals(out.reserve, (Vector(Z, P), Trits.fromLong(-12, 3)))
 
-    val afterExp = Machine.step(afterCp) // pointers swap with zeroed reserve
-    assertEquals(afterExp.ph, Vector(Z, Z))
-    assertEquals(afterExp.reserve, (Vector(Z, P), Vector(P, Z, N)))
+  test("CP captures a stack mark and LP restores it"):
+    val prog = Asm.page(ProgPage):
+      push(const(5)); op(SpecialOp.CP); op(SpecialOp.LP)
+    val out = Machine.run(prog.boot, 3)
+    assertEquals(out.fault, None)
+    // LP reinstalled the pointer CP captured, unwinding CP's own push
+    assertEquals(out.operands, List(5L.bw))
+    assertEquals(out.ph, Vector(Z, Z))
 
-    val afterLp = Machine.step(afterExp) // reload from the word CP pushed
-    assertEquals(afterLp.fault, None)
-    assertEquals(afterLp.ph, Vector(Z, P))
-    assertEquals(afterLp.pa, Vector(P, Z, N))
+  test("pushes land in the stack page; the 27th push overflows"):
+    val prog = Asm.page(ProgPage) { push(const(42)) }
+    val out = Machine.step(prog.boot)
+    assertEquals(out.fault, None)
+    // boot stack is page 9; slot −13 is trytes −40…−38, junior last
+    assertEquals(out.memory.tryte(9, -38), Right(42.bt))
+    assertEquals(out.operands, List(42L.bw))
+
+    val full = prog.boot.withStack(List.fill(26)(Word.Zero))
+    assertEquals(Machine.step(full).fault, Some(Fault.StackOverflow))
 
   test("LH2 loads a page register from the stack top"):
     val prog = Asm.page(ProgPage) { op(SpecialOp.LH2) }
-    val m = prog.boot.copy(
-      operands = List(Word(Trits.zero(15).patch(3, Trits.fromLong(-13, 3), 3) ++ Trits.zero(3)))
+    val m = prog.boot.withStack(
+      List(Word(Trits.zero(15).patch(3, Trits.fromLong(-13, 3), 3) ++ Trits.zero(3)))
     )
     val out = Machine.step(m)
     assertEquals(out.fault, None)
@@ -179,7 +190,7 @@ class MachineSpec extends munit.FunSuite:
       op(SpecialOp.RMC)
     val m0 = MachineState
       .initial(sys.memory)
-      .copy(operands = List(Word(linkage(N, ProgPage, 20) ++ Trits.zero(6))))
+      .withStack(List(Word(linkage(N, ProgPage, 20) ++ Trits.zero(6))))
     val out = Machine.run(m0, 2)
     assertEquals(out.fault, None)
     assertEquals(out.c1, N)
@@ -205,7 +216,7 @@ class MachineSpec extends munit.FunSuite:
       op(SpecialOp.LQ2); op(SpecialOp.LF2); op(SpecialOp.CF2)
     val marker = 42.bt
     val Right(mem) = prog.memory.write(DataPage, 20, Vector(marker)): @unchecked
-    val m0 = prog.boot.copy(memory = mem, operands = List(pageWord(DataPage)))
+    val m0 = prog.boot.copy(memory = mem).withStack(List(pageWord(DataPage)))
 
     val afterLq = Machine.step(m0) // q[0] from T[5:12]; T stays
     assertEquals(afterLq.fault, None)
@@ -224,7 +235,7 @@ class MachineSpec extends munit.FunSuite:
 
   test("CF into a ROM page faults"):
     val prog = Asm.page(ProgPage) { op(SpecialOp.CF2) }
-    val m = prog.boot.copy(operands = List(pageWord(0))) // page 0 is ROM
+    val m = prog.boot.withStack(List(pageWord(0))) // page 0 is ROM
     assertEquals(Machine.step(m).fault, Some(Fault.ReadOnlyPage))
 
   test("CG pushes channel input with the bit-7 sign convention"):
@@ -240,7 +251,7 @@ class MachineSpec extends munit.FunSuite:
   test("LU activates a channel and LG logs output; both pop"):
     val prog = Asm.page(ProgPage) { op(SpecialOp.LU3); op(SpecialOp.LG3) }
     val ctrl = Word.fromTrytes(7.bt, Tryte.Zero, Tryte.Zero)
-    val m = prog.boot.copy(operands = List(ctrl, 99L.bw))
+    val m = prog.boot.withStack(List(ctrl, 99L.bw))
     val out = Machine.run(m, 2)
     assertEquals(out.fault, None)
     assertEquals(out.operands, Nil)

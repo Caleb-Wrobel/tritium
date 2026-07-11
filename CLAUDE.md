@@ -24,7 +24,9 @@ names here.
   `docs/setun-70/instruction-set.md`; deviations must be commented.
   The full instruction set is implemented; devices are pure state
   (drums as page maps, I/O channels as input queues/output logs a
-  driver fills and drains between steps).
+  driver fills and drains between steps). The operand stack is
+  memory-backed behind `ph:pa` (page = ph + 9, word slots −13…+13);
+  `MachineState.operands` is a derived view, `withStack` seeds it.
 - `setun.machine.asm` — the assembler DSL: `Asm.page(n) { push(const(5));
   op(BasicOp.SAddT); jump("label") }` → a bootable `Program`. Two-pass
   (labels fix up at finish), constant pool grows from the page tail.

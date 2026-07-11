@@ -24,6 +24,9 @@ organization.
 - ✅ Drum paging (LQ/CF/LF) and I/O channels (CG/LU/LG): the full
   instruction set runs; devices are modeled purely (drums as page maps,
   channels as input queues and output logs a driver fills and drains)
+- ✅ Memory-backed operand stack: the stack lives in a RAM page behind
+  the `ph:pa` pointer as on the hardware, so EXP and LP switch between
+  real stacks — the machine's coroutine/context-switch mechanism works
 
 ## Quick start
 
