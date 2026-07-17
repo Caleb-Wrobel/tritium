@@ -238,14 +238,15 @@ class MachineSpec extends munit.FunSuite:
     val m = prog.boot.withStack(List(pageWord(0))) // page 0 is ROM
     assertEquals(Machine.step(m).fault, Some(Fault.ReadOnlyPage))
 
-  test("CG pushes channel input with the bit-7 sign convention"):
+  test("CG decodes channel rows element-wise with the hole-7 sign convention"):
     val prog = Asm.page(ProgPage) { op(SpecialOp.CG2); op(SpecialOp.CG2) }
-    val ch = Channel(input = List(64 | 42, 42)) // bit 7 set → plus, clear → minus
+    // row 42 = holes 2, 4, 6 → trits +0+0+0; hole 7 (bit 64) picks the sign
+    val ch = Channel(input = List(64 | 42, 42))
     val m = prog.boot.copy(channels = prog.boot.channels.updated(Z, ch))
     val out = Machine.run(m, 2)
     assertEquals(out.fault, None)
-    val senior = (v: Int) => Word.fromTrytes(v.bt, Tryte.Zero, Tryte.Zero)
-    assertEquals(out.operands, List(senior(-42), senior(42)))
+    val senior = (t: Tryte) => Word.fromTrytes(t, Tryte.Zero, Tryte.Zero)
+    assertEquals(out.operands, List(senior(t"-0-0-0"), senior(t"+0+0+0")))
     assertEquals(out.channels(Z).input, Nil)
 
   test("LU activates a channel and LG logs output; both pop"):

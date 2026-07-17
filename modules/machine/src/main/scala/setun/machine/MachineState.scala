@@ -17,9 +17,10 @@ enum Fault:
 
 /** One I/O channel's state — the spec's g (data), u (control) and a
   * (active) registers, modeled purely. `input` holds pending device
-  * values that CG consumes (7-bit binary: bits 1–6 data, bit 7 the sign
-  * flag); `output` logs the words TRANSOUT (LG) has written. A driver
-  * loads `input` and drains `output` between steps.
+  * rows that CG consumes (7-bit tape/keyboard symbol code, decoded
+  * element-wise per TapeCode); `output` logs the words TRANSOUT (LG)
+  * has written. A driver loads `input` and drains `output` between
+  * steps.
   */
 final case class Channel(
     input: List[Int] = Nil,

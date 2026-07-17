@@ -290,17 +290,17 @@ object Machine:
 
   // -- I/O channels ------------------------------------------------------
 
-  /** CG: read one pending value from channel i to the stack top:
-    * T := 0, t := ±g[i,1:6], plus when bit 7 is set. Interpreted as a
-    * push (as CP's "to stack top" is); consuming an empty channel
+  /** CG: read one pending row from channel i to the stack top:
+    * T := 0, t := ±g[i,1:6] — an element-wise register copy, each hole
+    * a ±1 trit in place with hole 7 the sign (see TapeCode). Interpreted
+    * as a push (as CP's "to stack top" is); consuming an empty channel
     * faults — the hardware would wait on the device instead.
     */
   private def readChannel(m: MachineState, i: Trit): MachineState =
     val ch = m.channels(i)
     ch.input match
       case v :: rest =>
-        val data = if ((v >> 6) & 1) == 1 then v & 63 else -(v & 63)
-        m.push(Word.fromTrytes(Tryte.fromInt(data), Tryte.Zero, Tryte.Zero)) match
+        m.push(Word.fromTrytes(TapeCode.decode(v & 127), Tryte.Zero, Tryte.Zero)) match
           case Left(f)   => m.fail(f)
           case Right(m2) => m2.copy(channels = m.channels.updated(i, ch.copy(input = rest))).advanced
       case Nil => m.fail(Fault.ChannelEmpty(i))

@@ -27,6 +27,9 @@ organization.
 - ✅ Memory-backed operand stack: the stack lives in a RAM page behind
   the `ph:pa` pointer as on the hardware, so EXP and LP switch between
   real stacks — the machine's coroutine/context-switch mechanism works
+- ✅ Punched-tape symbol codec (`TapeCode`): 7-hole rows ↔ trytes,
+  element-wise with hole 7 as the row's sign; CG decodes channel
+  input through it
 
 ## Quick start
 
